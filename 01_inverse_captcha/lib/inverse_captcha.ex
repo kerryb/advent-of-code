@@ -4,8 +4,6 @@ defmodule InverseCaptcha do
   """
 
   @doc """
-  Hello world.
-
   ## Examples
 
       iex> InverseCaptcha.sum "1122"
