@@ -15,11 +15,34 @@ defmodule Registers do
       1
   '''
   def largest_value(input) do
-    input
-    |> String.trim
-    |> String.split("\n")
-    |> Enum.map(&parse/1)
-    |> run
+    {registers, _} = input
+                     |> String.trim
+                     |> String.split("\n")
+                     |> Enum.map(&parse/1)
+                     |> run
+    registers
+    |> Map.values
+    |> Enum.max
+  end
+
+  @doc ~S'''
+  ## Examples
+
+      iex> Registers.largest_ever_value """
+      ...> b inc 5 if a > 1
+      ...> a inc 1 if b < 5
+      ...> c dec -10 if a >= 1
+      ...> c inc -20 if c == 10
+      ...> """
+      10
+  '''
+  def largest_ever_value(input) do
+    {_, max} = input
+               |> String.trim
+               |> String.split("\n")
+               |> Enum.map(&parse/1)
+               |> run
+    max
   end
 
   defp parse(line) do
@@ -34,17 +57,15 @@ defmodule Registers do
 
   def run(instructions) do
     instructions
-    |> Enum.reduce(%{}, &update/2)
-    |> Map.values
-    |> Enum.max
+    |> Enum.reduce({%{}, nil}, &update/2)
   end
 
-  def update(instruction, registers) do
+  def update(instruction, {registers, max}) do
     value = Map.get registers, instruction.source, 0
     if evaluate(value, instruction.comparator, instruction.compare_with) do
-      update_register registers, instruction.target, instruction.op, instruction.delta
+      update_register {registers, max}, instruction.target, instruction.op, instruction.delta
     else
-      registers
+      {registers, max}
     end
   end
 
@@ -55,10 +76,11 @@ defmodule Registers do
   defp evaluate(x, "<=", y), do: x <= y
   defp evaluate(x, ">=", y), do: x >= y
 
-  defp update_register(registers, key, "inc", delta) do
-    registers |> Map.update(key, delta, &(&1 + delta))
-  end
-  defp update_register(registers, key, "dec", delta) do
-    registers |> Map.update(key, -delta, &(&1 - delta))
+  defp update_register({registers, max}, key, "inc", delta), do: update_register {registers, max}, key, delta
+  defp update_register({registers, max}, key, "dec", delta), do: update_register {registers, max}, key, -delta
+  defp update_register({registers, max}, key, delta) do
+    new_value = Map.get(registers, key, 0) + delta
+    new_max = if is_nil(max), do: new_value, else: Enum.max [max, new_value]
+    {Map.put(registers, key, new_value), new_max}
   end
 end
