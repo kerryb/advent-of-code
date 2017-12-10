@@ -25,14 +25,54 @@ defmodule StreamProcessing do
 
   '''
   def score(groups) do
-    score groups, 0, 1, :valid
+    {score, _garbage} = score groups, 0, 0, 1, :valid
+    score
   end
 
-  defp score("", score, _, _), do: score
-  defp score(<<"{", rest::binary>>, score, level, :valid), do: score rest, score + level, level + 1, :valid
-  defp score(<<"}", rest::binary>>, score, level, :valid), do: score rest, score, level - 1, :valid
-  defp score(<<"<", rest::binary>>, score, level, :valid), do: score rest, score, level, :garbage
-  defp score(<<">", rest::binary>>, score, level, :garbage), do: score rest, score, level, :valid
-  defp score(<<"!", _::binary-size(1), rest::binary>>, score, level, :garbage), do: score rest, score, level, :garbage
-  defp score(<<_::binary-size(1), rest::binary>>, score, level, state), do: score rest, score, level, state
+  @doc ~S'''
+  ## Examples
+
+      iex> StreamProcessing.garbage "<>"
+      0
+      iex> StreamProcessing.garbage "<random characters>"
+      17
+      iex> StreamProcessing.garbage "<<<<>"
+      3
+      iex> StreamProcessing.garbage "<{!>}>"
+      2
+      iex> StreamProcessing.garbage "<!!>"
+      0
+      iex> StreamProcessing.garbage "<!!!>>"
+      0
+      iex> StreamProcessing.garbage ~s{<{o"i!a,<{i<a>}
+      10
+
+  '''
+  def garbage(groups) do
+    {_score, garbage} = score groups, 0, 0, 1, :valid
+    garbage
+  end
+
+  defp score("", score, garbage, _, _), do: {score, garbage}
+  defp score(<<"{", rest::binary>>, score, garbage, level, :valid) do
+    score rest, score + level, garbage, level + 1, :valid
+  end
+  defp score(<<"}", rest::binary>>, score, garbage, level, :valid) do
+    score rest, score, garbage, level - 1, :valid
+  end
+  defp score(<<"<", rest::binary>>, score, garbage, level, :valid) do
+    score rest, score, garbage, level, :garbage
+  end
+  defp score(<<">", rest::binary>>, score, garbage, level, :garbage) do
+    score rest, score, garbage, level, :valid
+  end
+  defp score(<<"!", _::binary-size(1), rest::binary>>, score, garbage, level, :garbage) do
+    score rest, score, garbage, level, :garbage
+  end
+  defp score(<<_::binary-size(1), rest::binary>>, score, garbage, level, :garbage) do
+    score rest, score, garbage + 1, level, :garbage
+  end
+  defp score(<<_::binary-size(1), rest::binary>>, score, garbage, level, :valid) do
+    score rest, score, garbage, level, :valid
+  end
 end
